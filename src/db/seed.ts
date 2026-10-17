@@ -1,0 +1,142 @@
+import type { Equipment, Exercise, Muscle } from './types';
+
+// [name, primary muscle, equipment]. IDs are derived from the name so they stay
+// stable across installs, which keeps backups portable between devices.
+const RAW: [string, Muscle, Equipment][] = [
+  // Chest
+  ['Bench Press', 'chest', 'barbell'],
+  ['Incline Bench Press', 'chest', 'barbell'],
+  ['Decline Bench Press', 'chest', 'barbell'],
+  ['Dumbbell Bench Press', 'chest', 'dumbbell'],
+  ['Incline Dumbbell Press', 'chest', 'dumbbell'],
+  ['Dumbbell Fly', 'chest', 'dumbbell'],
+  ['Cable Crossover', 'chest', 'cable'],
+  ['Chest Press Machine', 'chest', 'machine'],
+  ['Pec Deck', 'chest', 'machine'],
+  ['Push-Up', 'chest', 'bodyweight'],
+  ['Chest Dip', 'chest', 'bodyweight'],
+  ['Smith Machine Bench Press', 'chest', 'smith machine'],
+  // Back
+  ['Deadlift', 'lower back', 'barbell'],
+  ['Barbell Row', 'upper back', 'barbell'],
+  ['Pendlay Row', 'upper back', 'barbell'],
+  ['T-Bar Row', 'upper back', 'barbell'],
+  ['Dumbbell Row', 'upper back', 'dumbbell'],
+  ['Seated Cable Row', 'upper back', 'cable'],
+  ['Chest-Supported Row', 'upper back', 'machine'],
+  ['Pull-Up', 'lats', 'bodyweight'],
+  ['Chin-Up', 'lats', 'bodyweight'],
+  ['Lat Pulldown', 'lats', 'cable'],
+  ['Close-Grip Lat Pulldown', 'lats', 'cable'],
+  ['Straight-Arm Pulldown', 'lats', 'cable'],
+  ['Assisted Pull-Up', 'lats', 'machine'],
+  ['Back Extension', 'lower back', 'bodyweight'],
+  ['Good Morning', 'hamstrings', 'barbell'],
+  ['Rack Pull', 'lower back', 'barbell'],
+  ['Inverted Row', 'upper back', 'bodyweight'],
+  // Traps
+  ['Barbell Shrug', 'traps', 'barbell'],
+  ['Dumbbell Shrug', 'traps', 'dumbbell'],
+  ['Face Pull', 'shoulders', 'cable'],
+  // Shoulders
+  ['Overhead Press', 'shoulders', 'barbell'],
+  ['Seated Dumbbell Press', 'shoulders', 'dumbbell'],
+  ['Arnold Press', 'shoulders', 'dumbbell'],
+  ['Lateral Raise', 'shoulders', 'dumbbell'],
+  ['Cable Lateral Raise', 'shoulders', 'cable'],
+  ['Front Raise', 'shoulders', 'dumbbell'],
+  ['Rear Delt Fly', 'shoulders', 'dumbbell'],
+  ['Reverse Pec Deck', 'shoulders', 'machine'],
+  ['Shoulder Press Machine', 'shoulders', 'machine'],
+  ['Upright Row', 'shoulders', 'barbell'],
+  ['Landmine Press', 'shoulders', 'barbell'],
+  // Biceps
+  ['Barbell Curl', 'biceps', 'barbell'],
+  ['EZ-Bar Curl', 'biceps', 'barbell'],
+  ['Dumbbell Curl', 'biceps', 'dumbbell'],
+  ['Hammer Curl', 'biceps', 'dumbbell'],
+  ['Incline Dumbbell Curl', 'biceps', 'dumbbell'],
+  ['Preacher Curl', 'biceps', 'barbell'],
+  ['Concentration Curl', 'biceps', 'dumbbell'],
+  ['Cable Curl', 'biceps', 'cable'],
+  ['Bicep Curl Machine', 'biceps', 'machine'],
+  // Triceps
+  ['Close-Grip Bench Press', 'triceps', 'barbell'],
+  ['Skull Crusher', 'triceps', 'barbell'],
+  ['Triceps Pushdown', 'triceps', 'cable'],
+  ['Rope Pushdown', 'triceps', 'cable'],
+  ['Overhead Triceps Extension', 'triceps', 'dumbbell'],
+  ['Cable Overhead Triceps Extension', 'triceps', 'cable'],
+  ['Triceps Dip', 'triceps', 'bodyweight'],
+  ['Triceps Kickback', 'triceps', 'dumbbell'],
+  ['Diamond Push-Up', 'triceps', 'bodyweight'],
+  // Forearms
+  ['Wrist Curl', 'forearms', 'dumbbell'],
+  ['Reverse Wrist Curl', 'forearms', 'dumbbell'],
+  ['Farmer’s Walk', 'forearms', 'dumbbell'],
+  ['Dead Hang', 'forearms', 'bodyweight'],
+  // Legs
+  ['Squat', 'quadriceps', 'barbell'],
+  ['Front Squat', 'quadriceps', 'barbell'],
+  ['Goblet Squat', 'quadriceps', 'dumbbell'],
+  ['Hack Squat', 'quadriceps', 'machine'],
+  ['Leg Press', 'quadriceps', 'machine'],
+  ['Leg Extension', 'quadriceps', 'machine'],
+  ['Bulgarian Split Squat', 'quadriceps', 'dumbbell'],
+  ['Walking Lunge', 'quadriceps', 'dumbbell'],
+  ['Reverse Lunge', 'quadriceps', 'barbell'],
+  ['Step-Up', 'quadriceps', 'dumbbell'],
+  ['Smith Machine Squat', 'quadriceps', 'smith machine'],
+  ['Pistol Squat', 'quadriceps', 'bodyweight'],
+  ['Romanian Deadlift', 'hamstrings', 'barbell'],
+  ['Dumbbell Romanian Deadlift', 'hamstrings', 'dumbbell'],
+  ['Stiff-Leg Deadlift', 'hamstrings', 'barbell'],
+  ['Lying Leg Curl', 'hamstrings', 'machine'],
+  ['Seated Leg Curl', 'hamstrings', 'machine'],
+  ['Nordic Hamstring Curl', 'hamstrings', 'bodyweight'],
+  ['Hip Thrust', 'glutes', 'barbell'],
+  ['Glute Bridge', 'glutes', 'bodyweight'],
+  ['Cable Kickback', 'glutes', 'cable'],
+  ['Sumo Deadlift', 'glutes', 'barbell'],
+  ['Hip Adduction Machine', 'adductors', 'machine'],
+  ['Hip Abduction Machine', 'abductors', 'machine'],
+  ['Standing Calf Raise', 'calves', 'machine'],
+  ['Seated Calf Raise', 'calves', 'machine'],
+  ['Leg Press Calf Raise', 'calves', 'machine'],
+  // Core
+  ['Plank', 'abdominals', 'bodyweight'],
+  ['Crunch', 'abdominals', 'bodyweight'],
+  ['Hanging Leg Raise', 'abdominals', 'bodyweight'],
+  ['Cable Crunch', 'abdominals', 'cable'],
+  ['Ab Wheel Rollout', 'abdominals', 'other'],
+  ['Russian Twist', 'abdominals', 'bodyweight'],
+  ['Side Plank', 'abdominals', 'bodyweight'],
+  ['Pallof Press', 'abdominals', 'cable'],
+  // Full body / conditioning
+  ['Kettlebell Swing', 'glutes', 'kettlebell'],
+  ['Power Clean', 'full body', 'barbell'],
+  ['Clean and Jerk', 'full body', 'barbell'],
+  ['Snatch', 'full body', 'barbell'],
+  ['Thruster', 'full body', 'barbell'],
+  ['Burpee', 'full body', 'bodyweight'],
+  ['Turkish Get-Up', 'full body', 'kettlebell'],
+  ['Band Pull-Apart', 'shoulders', 'band'],
+  ['Rowing Machine', 'cardio', 'machine'],
+];
+
+export function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+export const SEED_EXERCISES: Exercise[] = RAW.map(([name, primaryMuscle, equipment]) => ({
+  id: `seed-${slugify(name)}`,
+  name,
+  primaryMuscle,
+  equipment,
+  isCustom: false,
+  createdAt: 0,
+}));
