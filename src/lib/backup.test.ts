@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { saveAiSecret } from '../db/actions';
 import { db, resetDatabase } from '../db/db';
 import { SEED_EXERCISES } from '../db/seed';
 import { DEFAULT_SETTINGS } from '../db/types';
@@ -10,7 +11,8 @@ function sampleData(): BackupData {
   return {
     exercises: [
       ...SEED_EXERCISES.slice(0, 3),
-      { id: 'custom-1', name: 'Zercher Squat', primaryMuscle: 'quadriceps', equipment: 'barbell', isCustom: true, createdAt: 5, restSeconds: 120 },
+      { id: 'custom-1', name: 'Zercher Squat', primaryMuscle: 'quadriceps', equipment: 'barbell', isCustom: true, createdAt: 5, restSeconds: 120,
+        description: 'barra en los codos, bajar como sentadilla', aliases: ['la del codo'] },
     ],
     routines: [
       {
@@ -19,7 +21,7 @@ function sampleData(): BackupData {
       },
     ],
     workouts: [workout('w1', 1_700_000_000_000, { [SEED_EXERCISES[0]!.id]: [set(100, 5)], 'custom-1': [set(80, 8, { rpe: 8.5 })] })],
-    settings: { ...DEFAULT_SETTINGS, unit: 'lb', defaultRestSeconds: 120 },
+    settings: { ...DEFAULT_SETTINGS, unit: 'lb', defaultRestSeconds: 120, language: 'es' },
   };
 }
 
@@ -109,6 +111,15 @@ describe('export / restore round trip', () => {
     expect(restored.routines).toEqual(data.routines);
     expect(restored.workouts).toEqual(data.workouts);
     expect(restored.settings).toEqual({ ...data.settings, lastBackupAt: now.getTime() });
+  });
+
+  it('never exports the AI key, and a restore keeps it on the device', async () => {
+    await restoreBackup(sampleData());
+    await saveAiSecret('sk-ant-test-0000000000000000000000', 'claude-haiku-5-5');
+    const file = await exportBackup();
+    expect(JSON.stringify(file)).not.toContain('sk-ant-');
+    await restoreBackup(sampleData());
+    expect((await db.secrets.get('anthropic'))?.model).toBe('claude-haiku-5-5');
   });
 
   it('leaves existing data untouched when a restore fails midway', async () => {

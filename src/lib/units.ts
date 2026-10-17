@@ -1,4 +1,5 @@
 import type { Unit } from '../db/types';
+import { getFormatLocale } from './format';
 
 export const KG_PER_LB = 0.45359237;
 
@@ -23,12 +24,18 @@ export function formatWeight(kg: number | null, unit: Unit): string {
 }
 
 export function formatNumber(n: number, maxDecimals = 2): string {
-  return n.toLocaleString('en-US', { maximumFractionDigits: maxDecimals });
+  return n.toLocaleString(getFormatLocale(), { maximumFractionDigits: maxDecimals });
 }
 
 /** Large totals (volume) read better without decimals. */
 export function formatVolume(kg: number, unit: Unit): string {
-  return `${Math.round(toDisplayWeight(kg, unit)).toLocaleString('en-US')} ${unit}`;
+  return `${Math.round(toDisplayWeight(kg, unit)).toLocaleString(getFormatLocale())} ${unit}`;
+}
+
+/** Value for an editable field: no grouping separators, locale decimal mark. */
+export function formatInputNumber(n: number): string {
+  const s = String(Math.round(n * 100) / 100);
+  return getFormatLocale().startsWith('es') ? s.replace('.', ',') : s;
 }
 
 /** Parses user input, accepting a comma as decimal separator (es-ES iOS keyboards). */

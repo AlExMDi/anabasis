@@ -103,6 +103,14 @@ function vExercise(v: unknown, path: string, e: Errors): Exercise | null {
     createdAt: isNum(v.createdAt) ? v.createdAt : 0,
   };
   if (v.restSeconds !== undefined) ex.restSeconds = num(v, 'restSeconds', path, e, 0, 3600);
+  if (v.description !== undefined) {
+    if (isStr(v.description)) ex.description = v.description.slice(0, 2000);
+    else e.add(`${path}.description`, 'must be a string');
+  }
+  if (v.aliases !== undefined) {
+    if (Array.isArray(v.aliases) && v.aliases.every(isStr)) ex.aliases = (v.aliases as string[]).slice(0, 20);
+    else e.add(`${path}.aliases`, 'must be a list of strings');
+  }
   return ex;
 }
 
@@ -191,6 +199,7 @@ function vSettings(v: unknown, e: Errors): Settings {
   return {
     id: 'app',
     unit: oneOf(v, 'unit', ['kg', 'lb'] as const, 'data.settings', e),
+    language: v.language === 'es' || v.language === 'en' ? v.language : null,
     defaultRestSeconds: num(v, 'defaultRestSeconds', 'data.settings', e, 0, 3600),
     lastBackupAt: isNum(v.lastBackupAt) ? v.lastBackupAt : null,
   };
@@ -257,7 +266,7 @@ export async function readAllData(): Promise<BackupData> {
     db.workouts.toArray(),
     db.settings.get('app'),
   ]);
-  return { exercises, routines, workouts, settings: settings ?? { ...DEFAULT_SETTINGS } };
+  return { exercises, routines, workouts, settings: { ...DEFAULT_SETTINGS, ...settings } };
 }
 
 /** Builds the backup and records the export time as the "last backup" date. */

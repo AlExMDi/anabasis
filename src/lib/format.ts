@@ -1,3 +1,15 @@
+// Module-level locale so these plain helpers follow the app language without
+// threading it through every call; I18nProvider keeps it in sync.
+let locale = 'en-US';
+
+export function setFormatLocale(l: string): void {
+  locale = l;
+}
+
+export function getFormatLocale(): string {
+  return locale;
+}
+
 export function formatDuration(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(total / 3600);
@@ -19,27 +31,39 @@ export function formatClock(ms: number): string {
 }
 
 export function formatDate(ts: number): string {
-  return new Date(ts).toLocaleDateString(undefined, {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  return new Date(ts).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+export function formatShortDate(ts: number): string {
+  return new Date(ts).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 }
 
 export function formatDateTime(ts: number): string {
-  return new Date(ts).toLocaleString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return new Date(ts).toLocaleString(locale, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-export function defaultWorkoutName(ts: number): string {
+export function formatTime(ts: number): string {
+  return new Date(ts).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+}
+
+export function formatMonthYear(year: number, month: number): string {
+  const s = new Date(year, month, 1).toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Narrow weekday labels starting on Monday. */
+export function weekdayInitials(): string[] {
+  const monday = new Date(2024, 0, 1); // a Monday
+  return Array.from({ length: 7 }, (_, i) =>
+    new Date(monday.getFullYear(), 0, 1 + i).toLocaleDateString(locale, { weekday: 'narrow' }),
+  );
+}
+
+export type DayPart = 'morning' | 'afternoon' | 'evening';
+
+export function dayPart(ts: number): DayPart {
   const h = new Date(ts).getHours();
-  if (h < 12) return 'Morning Workout';
-  if (h < 18) return 'Afternoon Workout';
-  return 'Evening Workout';
+  if (h < 12) return 'morning';
+  if (h < 18) return 'afternoon';
+  return 'evening';
 }

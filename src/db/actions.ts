@@ -1,6 +1,8 @@
 import { db } from './db';
 import {
   DEFAULT_SETTINGS,
+  type AiModel,
+  type AiSecret,
   type Exercise,
   type Routine,
   type RoutineExercise,
@@ -10,14 +12,14 @@ import {
   type WorkoutSet,
 } from './types';
 import { uid } from '../lib/id';
-import { defaultWorkoutName } from '../lib/format';
 
 // ---------------------------------------------------------------------------
 // Settings
 // ---------------------------------------------------------------------------
 
+/** Rows written by older versions lack newer fields, so always merge over the defaults. */
 export async function getSettings(): Promise<Settings> {
-  return (await db.settings.get('app')) ?? { ...DEFAULT_SETTINGS };
+  return { ...DEFAULT_SETTINGS, ...(await db.settings.get('app')) };
 }
 
 export async function updateSettings(patch: Partial<Omit<Settings, 'id'>>): Promise<void> {
@@ -31,25 +33,53 @@ export async function updateSettings(patch: Partial<Omit<Settings, 'id'>>): Prom
 // Exercises
 // ---------------------------------------------------------------------------
 
-export type ExerciseInput = Pick<Exercise, 'name' | 'primaryMuscle' | 'equipment'>;
+export type ExerciseInput = Pick<Exercise, 'name' | 'primaryMuscle' | 'equipment'> & Partial<Pick<Exercise, 'description' | 'aliases'>>;
 
-export async function validateExerciseName(name: string, ignoreId?: string): Promise<string | null> {
+export type ExerciseNameError = 'required' | 'long' | 'duplicate';
+
+export async function validateExerciseName(name: string, ignoreId?: string): Promise<ExerciseNameError | null> {
   const trimmed = name.trim();
-  if (trimmed.length === 0) return 'Name is required.';
-  if (trimmed.length > 80) return 'Name must be 80 characters or fewer.';
+  if (trimmed.length === 0) return 'required';
+  if (trimmed.length > 80) return 'long';
   const lower = trimmed.toLowerCase();
   const clash = await db.exercises.filter((e) => e.id !== ignoreId && e.name.toLowerCase() === lower).first();
-  return clash ? 'An exercise with this name already exists.' : null;
+  return clash ? 'duplicate' : null;
 }
 
 export async function createExercise(input: ExerciseInput): Promise<string> {
   const id = uid();
-  await db.exercises.add({ ...input, name: input.name.trim(), id, isCustom: true, createdAt: Date.now() });
+  await db.exercises.add({ ...clean(input), id, isCustom: true, createdAt: Date.now() });
   return id;
 }
 
+function clean<T extends Partial<ExerciseInput>>(input: T): T {
+  const out = { ...input };
+  if (out.name !== undefined) out.name = out.name.trim();
+  if (out.description !== undefined) out.description = out.description.trim().slice(0, 2000);
+  if (out.aliases !== undefined) out.aliases = [...new Set(out.aliases.map((a) => a.trim()).filter(Boolean))].slice(0, 20);
+  return out;
+}
+
+/** Updates the free-text notes/aliases on any exercise (seeded ones included). */
+export async function updateExerciseNotes(id: string, patch: Partial<Pick<Exercise, 'description' | 'aliases'>>): Promise<void> {
+  await db.exercises.update(id, clean(patch));
+}
+
+/** Remembers how you described an exercise so the offline search finds it next time. */
+export async function rememberDescription(id: string, description: string): Promise<void> {
+  const text = description.trim();
+  if (!text) return;
+  await db.transaction('rw', db.exercises, async () => {
+    const ex = await db.exercises.get(id);
+    if (!ex) return;
+    const existing = ex.description?.trim() ?? '';
+    if (existing.toLowerCase().includes(text.toLowerCase())) return;
+    await db.exercises.update(id, clean({ description: existing ? `${existing}\n${text}` : text }));
+  });
+}
+
 export async function updateExercise(id: string, input: ExerciseInput): Promise<void> {
-  await db.exercises.update(id, { ...input, name: input.name.trim() });
+  await db.exercises.update(id, clean(input));
 }
 
 /** Returns how many workouts/routines reference the exercise. */
@@ -64,7 +94,7 @@ export async function exerciseUsage(id: string): Promise<{ workouts: number; rou
 export async function deleteExercise(id: string): Promise<void> {
   const usage = await exerciseUsage(id);
   if (usage.workouts > 0 || usage.routines > 0) {
-    throw new Error('This exercise is used in workouts or routines and cannot be deleted.');
+    throw new Error('in-use');
   }
   await db.exercises.delete(id);
 }
@@ -119,13 +149,13 @@ async function restFor(exerciseId: string, settings: Settings): Promise<number> 
   return ex?.restSeconds ?? settings.defaultRestSeconds;
 }
 
-export async function startWorkout(routineId: string | null = null): Promise<string> {
+export async function startWorkout(routineId: string | null, defaultName: string): Promise<string> {
   return db.transaction('rw', [db.workouts, db.routines, db.exercises, db.settings, db.timers], async () => {
     const existing = await getActiveWorkout();
     if (existing) throw new Error('A workout is already in progress.');
     const settings = await getSettings();
     const now = Date.now();
-    let name = defaultWorkoutName(now);
+    let name = defaultName;
     let exercises: WorkoutExercise[] = [];
     if (routineId) {
       const routine = await db.routines.get(routineId);
@@ -286,4 +316,24 @@ export async function adjustRestTimer(deltaSeconds: number, now = Date.now()): P
 
 export async function stopRestTimer(): Promise<void> {
   await db.timers.clear();
+}
+
+// ---------------------------------------------------------------------------
+// AI key (device-only; excluded from backups)
+// ---------------------------------------------------------------------------
+
+export async function getAiSecret(): Promise<AiSecret | undefined> {
+  return db.secrets.get('anthropic');
+}
+
+export async function saveAiSecret(apiKey: string, model: AiModel): Promise<void> {
+  await db.secrets.put({ id: 'anthropic', apiKey: apiKey.trim(), model });
+}
+
+export async function setAiModel(model: AiModel): Promise<void> {
+  await db.secrets.update('anthropic', { model });
+}
+
+export async function deleteAiSecret(): Promise<void> {
+  await db.secrets.delete('anthropic');
 }

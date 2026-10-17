@@ -5,6 +5,7 @@ import { useRestTimer } from '../hooks/data';
 import { useNow } from '../hooks/useNow';
 import { formatClock } from '../lib/format';
 import { playRestDone } from '../lib/sound';
+import { useI18n } from '../i18n';
 
 const DONE_DISPLAY_MS = 4000;
 /** Only beep if we saw the timer cross zero "live"; not when returning hours later. */
@@ -33,22 +34,23 @@ export function useRestTimerController(): { timer: RestTimerState | null | undef
 }
 
 export function RestBar({ timer, remaining }: { timer: RestTimerState; remaining: number }) {
+  const { t } = useI18n();
   const done = remaining <= 0;
   const pct = Math.max(0, Math.min(100, (remaining / (timer.durationSeconds * 1000)) * 100));
   return (
-    <div className={`rest-bar ${done ? 'rest-bar--done' : ''}`} role="timer" aria-label="Rest timer">
+    <div className={`rest-bar ${done ? 'rest-bar--done' : ''}`} role="timer" aria-label={t('rest.timer')}>
       <div className="rest-bar__progress" style={{ width: `${pct}%` }} />
       {done ? (
         <>
-          <span className="rest-bar__time">Rest complete</span>
-          <button type="button" className="btn btn--sm" onClick={() => void stopRestTimer()}>Dismiss</button>
+          <span className="rest-bar__time">{t('rest.complete')}</span>
+          <button type="button" className="btn btn--sm" onClick={() => void stopRestTimer()}>{t('rest.dismiss')}</button>
         </>
       ) : (
         <>
-          <button type="button" className="btn btn--sm" onClick={() => void adjustRestTimer(-15)} aria-label="Subtract 15 seconds">−15</button>
+          <button type="button" className="btn btn--sm" onClick={() => void adjustRestTimer(-15)} aria-label={t('rest.minus')}>−15</button>
           <span className="rest-bar__time" aria-live="off">{formatClock(remaining)}</span>
-          <button type="button" className="btn btn--sm" onClick={() => void adjustRestTimer(15)} aria-label="Add 15 seconds">+15</button>
-          <button type="button" className="btn btn--sm btn--primary" onClick={() => void stopRestTimer()}>Skip</button>
+          <button type="button" className="btn btn--sm" onClick={() => void adjustRestTimer(15)} aria-label={t('rest.plus')}>+15</button>
+          <button type="button" className="btn btn--sm btn--primary" onClick={() => void stopRestTimer()}>{t('rest.skip')}</button>
         </>
       )}
     </div>

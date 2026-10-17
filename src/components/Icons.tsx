@@ -21,3 +21,7 @@ export const IconTrophy = (p: P) => (<svg {...base} {...p}><path d="M8 21h8M12 1
 export const IconTimer = (p: P) => (<svg {...base} {...p}><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2M9 2h6" /></svg>);
 export const IconEdit = (p: P) => (<svg {...base} {...p}><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>);
 export const IconAlert = (p: P) => (<svg {...base} {...p}><path d="M12 9v4M12 17h.01" /><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>);
+export const IconSparkle = (p: P) => (<svg {...base} {...p}><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" /><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" /></svg>);
+export const IconCalendar = (p: P) => (<svg {...base} {...p}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></svg>);
+export const IconFlame = (p: P) => (<svg {...base} {...p}><path d="M12 22c4 0 7-2.7 7-6.5 0-3.3-2.2-5.6-4-7.5.1 2-1 3.5-2.5 3.5C11 11.5 11 9 12 6c-3 1.5-7 5-7 9.5C5 19.3 8 22 12 22z" /></svg>);
+export const IconKey = (p: P) => (<svg {...base} {...p}><circle cx="7.5" cy="15.5" r="4.5" /><path d="M10.7 12.3L21 2M17 6l3 3M15 8l2 2" /></svg>);

@@ -38,6 +38,8 @@ export default defineConfig({
       },
     }),
   ],
+  // The main chunk is React + Router + Dexie (~157 kB gzip); charts and the Claude SDK load on demand.
+  build: { chunkSizeWarningLimit: 600 },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],

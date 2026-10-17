@@ -10,6 +10,7 @@ import { deleteRoutine, newRoutineExercise, saveRoutine } from '../db/actions';
 import { db } from '../db/db';
 import type { Routine, RoutineExercise, RoutineSet, SetType } from '../db/types';
 import { useExerciseMap, useSettings } from '../hooks/data';
+import { useI18n } from '../i18n';
 import { confirmAction } from '../lib/confirm';
 import { uid } from '../lib/id';
 import { fromDisplayWeight, toDisplayWeight, weightStep } from '../lib/units';
@@ -17,6 +18,7 @@ import { fromDisplayWeight, toDisplayWeight, weightStep } from '../lib/units';
 type Draft = Omit<Routine, 'createdAt' | 'updatedAt'> & { createdAt?: number };
 
 export function RoutineEditorPage() {
+  const { t, exName } = useI18n();
   const { id } = useParams();
   const isNew = id === undefined;
   const navigate = useNavigate();
@@ -36,8 +38,8 @@ export function RoutineEditorPage() {
   if (!isNew && existing === null) {
     return (
       <main className="page page--no-tabs">
-        <PageHeader title="Routine" back="/" />
-        <ErrorState title="Routine not found" action={<Link className="btn" to="/">Back</Link>} />
+        <PageHeader title={t('routine.edit')} back="/" />
+        <ErrorState title={t('routine.notFound')} action={<Link className="btn" to="/">{t('common.back')}</Link>} />
       </main>
     );
   }
@@ -59,10 +61,10 @@ export function RoutineEditorPage() {
 
   const save = async () => {
     const errs: string[] = [];
-    if (draft.name.trim() === '') errs.push('Give the routine a name.');
-    if (draft.name.trim().length > 80) errs.push('Name must be 80 characters or fewer.');
-    if (draft.exercises.length === 0) errs.push('Add at least one exercise.');
-    if (draft.exercises.some((e) => e.sets.length === 0)) errs.push('Every exercise needs at least one set.');
+    if (draft.name.trim() === '') errs.push(t('routine.err.name'));
+    if (draft.name.trim().length > 80) errs.push(t('routine.err.nameLong'));
+    if (draft.exercises.length === 0) errs.push(t('routine.err.exercises'));
+    if (draft.exercises.some((e) => e.sets.length === 0)) errs.push(t('routine.err.sets'));
     setErrors(errs);
     if (errs.length > 0) return;
     await saveRoutine(draft);
@@ -72,9 +74,9 @@ export function RoutineEditorPage() {
   return (
     <main className="page page--no-tabs">
       <PageHeader
-        title={isNew ? 'New routine' : 'Edit routine'}
+        title={isNew ? t('routine.new') : t('routine.edit')}
         back="/"
-        actions={<button type="button" className="btn btn--primary btn--sm" onClick={() => void save()}>Save</button>}
+        actions={<button type="button" className="btn btn--primary btn--sm" onClick={() => void save()}>{t('common.save')}</button>}
       />
       {errors.length > 0 && (
         <div className="banner banner--error" role="alert">
@@ -82,29 +84,29 @@ export function RoutineEditorPage() {
         </div>
       )}
       <label className="field">
-        <span>Routine name</span>
-        <input className="input" value={draft.name} maxLength={80} placeholder="e.g. Push Day" onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+        <span>{t('routine.name')}</span>
+        <input className="input" value={draft.name} maxLength={80} placeholder={t('routine.namePlaceholder')} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
       </label>
       <label className="field">
-        <span>Notes</span>
+        <span>{t('routine.notes')}</span>
         <textarea className="textarea" value={draft.notes} maxLength={1000} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
       </label>
 
       {draft.exercises.map((re, i) => {
-        const name = exercises.get(re.exerciseId)?.name ?? 'Unknown exercise';
+        const name = exName(exercises.get(re.exerciseId));
         return (
           <section key={re.id} className="card ex-card" aria-label={name}>
             <div className="ex-card__head">
               <span className="grow ex-card__name">{name}</span>
-              <button type="button" className="icon-btn" aria-label={`Move ${name} up`} disabled={i === 0} onClick={() => move(i, -1)}><IconUp /></button>
-              <button type="button" className="icon-btn" aria-label={`Move ${name} down`} disabled={i === draft.exercises.length - 1} onClick={() => move(i, 1)}><IconDown /></button>
-              <button type="button" className="icon-btn icon-btn--danger" aria-label={`Remove ${name}`} onClick={() => setExercises((l) => l.filter((x) => x.id !== re.id))}><IconTrash /></button>
+              <button type="button" className="icon-btn" aria-label={t('editor.moveUp', { name })} disabled={i === 0} onClick={() => move(i, -1)}><IconUp /></button>
+              <button type="button" className="icon-btn" aria-label={t('editor.moveDown', { name })} disabled={i === draft.exercises.length - 1} onClick={() => move(i, 1)}><IconDown /></button>
+              <button type="button" className="icon-btn icon-btn--danger" aria-label={t('editor.remove', { name })} onClick={() => setExercises((l) => l.filter((x) => x.id !== re.id))}><IconTrash /></button>
             </div>
             {re.sets.map((s, si) => (
               <div key={s.id} className="routine-set">
                 <select
                   className="select"
-                  aria-label={`Set type for ${name} set ${si + 1}`}
+                  aria-label={t('editor.setType', { set: t('editor.setLabel', { name, n: si + 1 }) })}
                   value={s.type}
                   onChange={(e) => patchSet(re.id, s.id, { type: e.target.value as SetType })}
                 >
@@ -114,7 +116,7 @@ export function RoutineEditorPage() {
                   <option value="failure">F</option>
                 </select>
                 <NumberField
-                  label={`Target weight (${unit}) for ${name} set ${si + 1}`}
+                  label={t('routine.targetWeight', { unit, set: t('editor.setLabel', { name, n: si + 1 }) })}
                   suffix={unit}
                   value={s.weight === null ? null : toDisplayWeight(s.weight, unit)}
                   placeholder="–"
@@ -123,7 +125,7 @@ export function RoutineEditorPage() {
                   onChange={(v) => patchSet(re.id, s.id, { weight: v === null ? null : fromDisplayWeight(v, unit) })}
                 />
                 <NumberField
-                  label={`Target reps for ${name} set ${si + 1}`}
+                  label={t('routine.targetReps', { set: t('editor.setLabel', { name, n: si + 1 }) })}
                   integer
                   value={s.reps}
                   placeholder="–"
@@ -131,7 +133,7 @@ export function RoutineEditorPage() {
                   max={1000}
                   onChange={(v) => patchSet(re.id, s.id, { reps: v })}
                 />
-                <button type="button" className="icon-btn" aria-label={`Delete ${name} set ${si + 1}`} onClick={() => patchExercise(re.id, (x) => ({ ...x, sets: x.sets.filter((y) => y.id !== s.id) }))}>
+                <button type="button" className="icon-btn" aria-label={t('editor.deleteSet', { set: t('editor.setLabel', { name, n: si + 1 }) })} onClick={() => patchExercise(re.id, (x) => ({ ...x, sets: x.sets.filter((y) => y.id !== s.id) }))}>
                   <IconX width={18} height={18} />
                 </button>
               </div>
@@ -144,14 +146,14 @@ export function RoutineEditorPage() {
                 return { ...x, sets: [...x.sets, { id: uid(), weight: last?.weight ?? null, reps: last?.reps ?? null, type: 'normal' }] };
               })}
             >
-              <IconPlus width={18} height={18} /> Add set
+              <IconPlus width={18} height={18} /> {t('editor.addSet')}
             </button>
           </section>
         );
       })}
 
       <button type="button" className="btn btn--block btn--lg" onClick={() => setPicking(true)}>
-        <IconPlus width={20} height={20} /> Add exercises
+        <IconPlus width={20} height={20} /> {t('editor.addExercises')}
       </button>
 
       {!isNew && (
@@ -159,12 +161,12 @@ export function RoutineEditorPage() {
           type="button"
           className="btn btn--danger btn--block"
           onClick={async () => {
-            if (!confirmAction('Delete this routine? Past workouts are kept.')) return;
+            if (!confirmAction(t('routine.confirmDelete'))) return;
             await deleteRoutine(draft.id);
             navigate('/', { replace: true });
           }}
         >
-          Delete routine
+          {t('routine.delete')}
         </button>
       )}
 

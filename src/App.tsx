@@ -3,6 +3,9 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ErrorBoundary, ErrorState, Loading } from './components/States';
 import { db } from './db/db';
+import { UpdatePrompt } from './components/UpdatePrompt';
+import { useSettings } from './hooks/data';
+import { I18nProvider, detectLang, makeT } from './i18n';
 import { requestPersistentStorage } from './lib/storage';
 import { ActiveWorkoutPage } from './pages/ActiveWorkoutPage';
 import { ExerciseFormPage } from './pages/ExerciseFormPage';
@@ -20,6 +23,7 @@ const ProgressExercisePage = lazy(() => import('./pages/ProgressExercisePage').t
 
 /** Router-agnostic app: main.tsx wraps it in a HashRouter, tests in a MemoryRouter. */
 export function App() {
+  const t = makeT(detectLang());
   const [dbState, setDbState] = useState<'opening' | 'ready' | Error>('opening');
 
   useEffect(() => {
@@ -31,41 +35,51 @@ export function App() {
     void requestPersistentStorage();
   }, []);
 
-  if (dbState === 'opening') return <main className="page page--no-tabs"><Loading label="Opening database…" /></main>;
+  if (dbState === 'opening') return <main className="page page--no-tabs"><Loading label={t('state.openingDb')} /></main>;
   if (dbState instanceof Error) {
     return (
       <main className="page page--no-tabs">
         <ErrorState
-          title="Storage unavailable"
-          message={`The local database could not be opened (${dbState.message}). Private browsing or blocked site data can cause this.`}
-          action={<button className="btn btn--primary" onClick={() => window.location.reload()}>Try again</button>}
+          title={t('state.storageTitle')}
+          message={t('state.storageMessage', { message: dbState.message })}
+          action={<button className="btn btn--primary" onClick={() => window.location.reload()}>{t('common.retry')}</button>}
         />
       </main>
     );
   }
 
+  return <LocalizedRoutes />;
+}
+
+/** Settings live in the DB, so the language is only known once it's open. */
+function LocalizedRoutes() {
+  const settings = useSettings();
+  if (!settings) return <main className="page page--no-tabs"><Loading /></main>;
   return (
-    <ErrorBoundary>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route index element={<HomePage />} />
-          <Route path="workout" element={<ActiveWorkoutPage />} />
-          <Route path="routines/new" element={<RoutineEditorPage />} />
-          <Route path="routines/:id" element={<RoutineEditorPage />} />
-          <Route path="history" element={<HistoryPage />} />
-          <Route path="history/:id" element={<HistoryDetailPage />} />
-          <Route path="progress" element={<ProgressPage />} />
-          <Route
-            path="progress/:exerciseId"
-            element={<Suspense fallback={<main className="page page--no-tabs"><Loading /></main>}><ProgressExercisePage /></Suspense>}
-          />
-          <Route path="exercises" element={<ExercisesPage />} />
-          <Route path="exercises/new" element={<ExerciseFormPage />} />
-          <Route path="exercises/:id/edit" element={<ExerciseFormPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    </ErrorBoundary>
+    <I18nProvider lang={settings.language ?? detectLang()}>
+      <ErrorBoundary>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<HomePage />} />
+            <Route path="workout" element={<ActiveWorkoutPage />} />
+            <Route path="routines/new" element={<RoutineEditorPage />} />
+            <Route path="routines/:id" element={<RoutineEditorPage />} />
+            <Route path="history" element={<HistoryPage />} />
+            <Route path="history/:id" element={<HistoryDetailPage />} />
+            <Route path="progress" element={<ProgressPage />} />
+            <Route
+              path="progress/:exerciseId"
+              element={<Suspense fallback={<main className="page page--no-tabs"><Loading /></main>}><ProgressExercisePage /></Suspense>}
+            />
+            <Route path="exercises" element={<ExercisesPage />} />
+            <Route path="exercises/new" element={<ExerciseFormPage />} />
+            <Route path="exercises/:id/edit" element={<ExerciseFormPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </ErrorBoundary>
+      <UpdatePrompt />
+    </I18nProvider>
   );
 }

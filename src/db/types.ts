@@ -37,6 +37,7 @@ export const SET_TYPES = ['warmup', 'normal', 'drop', 'failure'] as const;
 export type SetType = (typeof SET_TYPES)[number];
 
 export type Unit = 'kg' | 'lb';
+export type Lang = 'es' | 'en';
 
 export interface Exercise {
   id: string;
@@ -46,6 +47,10 @@ export interface Exercise {
   isCustom: boolean;
   /** Per-exercise rest override in seconds; falls back to the global default. */
   restSeconds?: number;
+  /** Your own words for it ("how my trainer showed it"); also used to find it again. */
+  description?: string;
+  /** Extra names you call it; searched alongside the official names. */
+  aliases?: string[];
   createdAt: number;
 }
 
@@ -107,8 +112,20 @@ export interface Workout {
 export interface Settings {
   id: 'app';
   unit: Unit;
+  /** null = follow the device language. */
+  language: Lang | null;
   defaultRestSeconds: number;
   lastBackupAt: number | null;
+}
+
+export const AI_MODELS = ['claude-opus-5-5', 'claude-haiku-5-5'] as const;
+export type AiModel = (typeof AI_MODELS)[number];
+
+/** Never exported in backups: it only ever lives on this device. */
+export interface AiSecret {
+  id: 'anthropic';
+  apiKey: string;
+  model: AiModel;
 }
 
 /** Ephemeral rest-timer state; kept in its own table so it never clobbers workout edits. */
@@ -124,6 +141,7 @@ export interface RestTimerState {
 export const DEFAULT_SETTINGS: Settings = {
   id: 'app',
   unit: 'kg',
+  language: null,
   defaultRestSeconds: 90,
   lastBackupAt: null,
 };

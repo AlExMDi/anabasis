@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { formatNumber, parseDecimal } from '../lib/units';
+import { formatInputNumber, parseDecimal } from '../lib/units';
 
 interface Props {
   label: string;
@@ -85,5 +85,5 @@ export function NumberField({ label, value, onChange, step, min = 0, max, intege
 }
 
 function formatPlain(n: number): string {
-  return formatNumber(n, 2).replace(/,/g, '');
+  return formatInputNumber(n);
 }

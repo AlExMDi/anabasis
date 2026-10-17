@@ -34,3 +34,12 @@ export const BACKUP_REMINDER_MS = 14 * 24 * 60 * 60 * 1000;
 export function isBackupStale(lastBackupAt: number | null, now = Date.now()): boolean {
   return lastBackupAt === null || now - lastBackupAt > BACKUP_REMINDER_MS;
 }
+
+/** localStorage for small UI conveniences; private mode or blocked storage just forgets. */
+export function readString(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+export function writeString(key: string, value: string): void {
+  try { localStorage.setItem(key, value); } catch { /* ignore */ }
+}

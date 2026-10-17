@@ -13,17 +13,19 @@ import {
 } from '../db/actions';
 import type { Exercise, SetType, Settings, Workout, WorkoutExercise, WorkoutSet } from '../db/types';
 import { confirmAction } from '../lib/confirm';
-import { PR_LABELS, type PersonalRecord } from '../lib/prs';
+import { type PersonalRecord } from '../lib/prs';
 import { unlockAudio } from '../lib/sound';
-import { formatNumber, fromDisplayWeight, toDisplayWeight, weightStep } from '../lib/units';
+import { formatInputNumber, formatNumber, fromDisplayWeight, toDisplayWeight, weightStep } from '../lib/units';
+import { useI18n, type TFn } from '../i18n';
 import { ExercisePicker } from './ExercisePicker';
-import { IconCheck, IconDown, IconPlus, IconTrash, IconTrophy, IconUp, IconX } from './Icons';
+import { IconCheck, IconDown, IconEdit, IconPlus, IconTimer, IconTrash, IconTrophy, IconUp, IconX } from './Icons';
 import { NumberField } from './NumberField';
+import { TextField } from './TextField';
 
 export const REST_OPTIONS = [0, 30, 45, 60, 75, 90, 105, 120, 150, 180, 210, 240, 300, 360, 420, 480, 600];
 
-export function formatRest(s: number): string {
-  if (s === 0) return 'Off';
+export function formatRest(s: number, t: TFn): string {
+  if (s === 0) return t('editor.restOff');
   const m = Math.floor(s / 60);
   const r = s % 60;
   return m === 0 ? `${r}s` : r === 0 ? `${m}min` : `${m}:${String(r).padStart(2, '0')}`;
@@ -43,13 +45,14 @@ interface Props {
 }
 
 export function WorkoutEditor({ workout, mode, exercises, settings, previous, prs = [] }: Props) {
+  const { t } = useI18n();
   const [picking, setPicking] = useState(false);
 
   return (
     <div className="stack">
       {workout.exercises.length === 0 && (
         <div className="card muted" style={{ textAlign: 'center' }}>
-          No exercises yet. Add one to start logging sets.
+          {t('editor.empty')}
         </div>
       )}
       {workout.exercises.map((we, i) => (
@@ -66,7 +69,7 @@ export function WorkoutEditor({ workout, mode, exercises, settings, previous, pr
         />
       ))}
       <button type="button" className="btn btn--block btn--lg" onClick={() => setPicking(true)}>
-        <IconPlus width={20} height={20} /> Add exercises
+        <IconPlus width={20} height={20} /> {t('editor.addExercises')}
       </button>
       {picking && (
         <ExercisePicker
@@ -93,7 +96,9 @@ interface CardProps {
 }
 
 function ExerciseCard({ workout, we, index, mode, exercise, settings, previous, prs }: CardProps) {
-  const name = exercise?.name ?? 'Unknown exercise';
+  const { t, exName } = useI18n();
+  const name = exName(exercise);
+  const [showNotes, setShowNotes] = useState(we.notes !== '');
   const last = workout.exercises.length - 1;
   const sessionPR = prs.find((p) => p.setId === null);
   let workingIndex = 0;
@@ -106,10 +111,10 @@ function ExerciseCard({ workout, we, index, mode, exercise, settings, previous, 
           <div className="ex-card__tools">
             {mode === 'active' && (
               <label className="row small muted">
-                <span aria-hidden>Rest</span>
+                <IconTimer width={16} height={16} aria-hidden />
                 <select
                   className="select rest-select"
-                  aria-label={`Rest time for ${name}`}
+                  aria-label={t('editor.restFor', { name })}
                   value={we.restSeconds}
                   onChange={(e) => {
                     const s = Number(e.target.value);
@@ -118,28 +123,44 @@ function ExerciseCard({ workout, we, index, mode, exercise, settings, previous, 
                   }}
                 >
                   {(REST_OPTIONS.includes(we.restSeconds) ? REST_OPTIONS : [...REST_OPTIONS, we.restSeconds].sort((a, b) => a - b)).map((s) => (
-                    <option key={s} value={s}>{formatRest(s)}</option>
+                    <option key={s} value={s}>{formatRest(s, t)}</option>
                   ))}
                 </select>
               </label>
             )}
-            {sessionPR && <span className="badge badge--pr"><IconTrophy width={12} height={12} /> Volume PR</span>}
+            {!showNotes && (
+              <button type="button" className="btn btn--ghost btn--xs" onClick={() => setShowNotes(true)}>
+                <IconEdit width={14} height={14} /> {t('routine.notes')}
+              </button>
+            )}
+            {sessionPR && <span className="badge badge--pr"><IconTrophy width={12} height={12} /> {t('editor.volumePR')}</span>}
           </div>
         </div>
-        <button type="button" className="icon-btn" aria-label={`Move ${name} up`} disabled={index === 0} onClick={() => void moveWorkoutExercise(workout.id, we.id, -1)}><IconUp /></button>
-        <button type="button" className="icon-btn" aria-label={`Move ${name} down`} disabled={index === last} onClick={() => void moveWorkoutExercise(workout.id, we.id, 1)}><IconDown /></button>
+        <button type="button" className="icon-btn" aria-label={t('editor.moveUp', { name })} disabled={index === 0} onClick={() => void moveWorkoutExercise(workout.id, we.id, -1)}><IconUp /></button>
+        <button type="button" className="icon-btn" aria-label={t('editor.moveDown', { name })} disabled={index === last} onClick={() => void moveWorkoutExercise(workout.id, we.id, 1)}><IconDown /></button>
         <button
           type="button"
           className="icon-btn icon-btn--danger"
-          aria-label={`Remove ${name}`}
+          aria-label={t('editor.remove', { name })}
           onClick={() => {
             const logged = we.sets.some((s) => s.completed);
-            if (!logged || confirmAction(`Remove ${name} and its sets from this workout?`)) void removeWorkoutExercise(workout.id, we.id);
+            if (!logged || confirmAction(t('editor.confirmRemove', { name }))) void removeWorkoutExercise(workout.id, we.id);
           }}
         >
           <IconTrash />
         </button>
       </div>
+
+      {showNotes && (
+        <TextField
+          className="input input--notes"
+          aria-label={t('editor.notes', { name })}
+          placeholder={t('editor.notesPlaceholder')}
+          value={we.notes}
+          maxLength={500}
+          onCommit={(v) => void updateWorkoutExercise(workout.id, we.id, { notes: v })}
+        />
+      )}
 
       <div className="stack-sm">
         {we.sets.map((set, si) => {
@@ -162,7 +183,7 @@ function ExerciseCard({ workout, we, index, mode, exercise, settings, previous, 
         })}
       </div>
       <button type="button" className="btn btn--sm" onClick={() => void addSet(workout.id, we.id)}>
-        <IconPlus width={18} height={18} /> Add set
+        <IconPlus width={18} height={18} /> {t('editor.addSet')}
       </button>
     </section>
   );
@@ -182,9 +203,10 @@ interface SetRowProps {
 }
 
 function SetRow({ workout, we, set, label, exerciseName, setNumber, mode, settings, prev, prs }: SetRowProps) {
+  const { t } = useI18n();
   const { unit } = settings;
   const [error, setError] = useState<string | null>(null);
-  const desc = `${exerciseName} set ${setNumber}`;
+  const desc = t('editor.setLabel', { name: exerciseName, n: setNumber });
   const update = (patch: Partial<WorkoutSet>) => void updateSet(workout.id, we.id, set.id, patch);
   const prevWeight = prev?.weight != null ? toDisplayWeight(prev.weight, unit) : null;
   const prevText = prev ? `${prevWeight !== null ? formatNumber(prevWeight) : '–'} × ${prev.reps ?? '–'}` : '—';
@@ -198,7 +220,7 @@ function SetRow({ workout, we, set, label, exerciseName, setNumber, mode, settin
     const weight = set.weight ?? prev?.weight ?? null;
     const reps = set.reps ?? prev?.reps ?? null;
     if (reps === null || reps <= 0) {
-      setError('Enter reps first');
+      setError(t('editor.enterReps'));
       return;
     }
     setError(null);
@@ -210,31 +232,33 @@ function SetRow({ workout, we, set, label, exerciseName, setNumber, mode, settin
   return (
     <div className={`set ${set.completed ? 'set--done' : ''}`} data-testid="set-row">
       <div className="set__type" data-type={set.type}>
-        <select aria-label={`Set type for ${desc}`} value={set.type} onChange={(e) => update({ type: e.target.value as SetType })}>
-          <option value="normal">{set.type === 'normal' ? label : 'N'}</option>
-          <option value="warmup">W</option>
-          <option value="drop">D</option>
-          <option value="failure">F</option>
+        {/* Short badge on screen; the transparent native select on top gives iOS's wheel picker with full names. */}
+        <span className="set__badge" aria-hidden>{label}</span>
+        <select aria-label={t('editor.setType', { set: desc })} value={set.type} onChange={(e) => update({ type: e.target.value as SetType })}>
+          <option value="normal">{t('setType.normal')}</option>
+          <option value="warmup">{t('setType.warmup')}</option>
+          <option value="drop">{t('setType.drop')}</option>
+          <option value="failure">{t('setType.failure')}</option>
         </select>
       </div>
       <div className="set__prev">
         <button
           type="button"
           className="small"
-          aria-label={prev ? `Previous: ${prevText}. Tap to copy.` : 'No previous value'}
+          aria-label={prev ? t('editor.previous', { value: prevText }) : t('editor.noPrevious')}
           disabled={!prev}
           onClick={() => prev && update({ weight: prev.weight, reps: prev.reps })}
         >
           {prevText}
         </button>
         {prs.map((p) => (
-          <span key={p.type} className="badge badge--pr" title={PR_LABELS[p.type]}>
+          <span key={p.type} className="badge badge--pr" title={t(`pr.${p.type}`)}>
             <IconTrophy width={12} height={12} /> PR
           </span>
         ))}
         <select
           className="select set__rpe"
-          aria-label={`RPE for ${desc}`}
+          aria-label={t('editor.rpe', { set: desc })}
           value={set.rpe ?? ''}
           onChange={(e) => update({ rpe: e.target.value === '' ? null : Number(e.target.value) })}
         >
@@ -243,26 +267,26 @@ function SetRow({ workout, we, set, label, exerciseName, setNumber, mode, settin
         </select>
       </div>
       <div className="set__check">
-        <button type="button" className="icon-btn" aria-label={`Delete ${desc}`} onClick={() => void removeSet(workout.id, we.id, set.id)}>
+        <button type="button" className="icon-btn" aria-label={t('editor.deleteSet', { set: desc })} onClick={() => void removeSet(workout.id, we.id, set.id)}>
           <IconX width={18} height={18} />
         </button>
-        <button type="button" className="check-btn" aria-pressed={set.completed} aria-label={`Complete ${desc}`} onClick={toggle}>
+        <button type="button" className="check-btn" aria-pressed={set.completed} aria-label={t('editor.complete', { set: desc })} onClick={toggle}>
           <IconCheck />
         </button>
       </div>
       <div className="set__inputs">
         <NumberField
-          label={`Weight (${unit}) for ${desc}`}
+          label={t('editor.weight', { unit, set: desc })}
           suffix={unit}
           value={set.weight === null ? null : toDisplayWeight(set.weight, unit)}
-          placeholder={prevWeight !== null ? formatNumber(prevWeight).replace(/,/g, '') : '0'}
+          placeholder={prevWeight !== null ? formatInputNumber(prevWeight) : '0'}
           step={weightStep(unit)}
           max={unit === 'kg' ? 2000 : 4400}
           onChange={(v) => update({ weight: v === null ? null : fromDisplayWeight(v, unit) })}
         />
         <NumberField
-          label={`Reps for ${desc}`}
-          suffix="reps"
+          label={t('editor.reps', { set: desc })}
+          suffix={t('editor.repsUnit')}
           integer
           value={set.reps}
           placeholder={prev?.reps != null ? String(prev.reps) : '0'}

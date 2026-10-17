@@ -2,7 +2,6 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import { App } from './App';
-import { UpdatePrompt } from './components/UpdatePrompt';
 import './styles/app.css';
 
 // HashRouter: GitHub Pages has no SPA rewrites, and hash URLs keep deep links
@@ -12,6 +11,5 @@ createRoot(document.getElementById('root')!).render(
     <HashRouter>
       <App />
     </HashRouter>
-    <UpdatePrompt />
   </StrictMode>,
 );

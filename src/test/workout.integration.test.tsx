@@ -29,7 +29,7 @@ describe('logging a full workout', () => {
     // Pick Bench Press from the library sheet.
     const picker = await screen.findByRole('dialog', { name: /add exercises/i });
     await user.type(within(picker).getByRole('searchbox', { name: /search exercises/i }), 'bench press');
-    await user.click(await within(picker).findByRole('button', { name: /^Bench Press\s*chest/ }));
+    await user.click(await within(picker).findByRole('button', { name: /^Bench Press\s*Chest/ }));
     await user.click(within(picker).getByRole('button', { name: /add 1 exercise/i }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
@@ -59,7 +59,7 @@ describe('logging a full workout', () => {
     await waitFor(() => expect(screen.getAllByTestId('set-row')).toHaveLength(2));
 
     await user.click(screen.getByRole('button', { name: 'Finish' }));
-    expect(await screen.findByText(/workout saved/i)).toBeInTheDocument();
+    expect(await screen.findByText(/workout complete/i)).toBeInTheDocument();
 
     // Persisted as a completed workout with both sets.
     const [saved] = await db.workouts.toArray();
@@ -72,7 +72,8 @@ describe('logging a full workout', () => {
     expect(await db.timers.count()).toBe(0);
 
     // History list shows it with volume and set count.
-    await user.click(screen.getByRole('button', { name: 'Back' }));
+    await user.click(screen.getByRole('link', { name: 'Done' }));
+    await user.click(await screen.findByRole('link', { name: 'History' }));
     const card = await screen.findByRole('link', { name: /morning|afternoon|evening workout/i });
     expect(within(card).getByText('1,000 kg')).toBeInTheDocument();
     expect(within(card).getByText('2')).toBeInTheDocument();

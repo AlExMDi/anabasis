@@ -12,8 +12,10 @@ import { completedSetCount, workoutVolume } from '../lib/calc';
 import { confirmAction } from '../lib/confirm';
 import { formatClock } from '../lib/format';
 import { formatVolume } from '../lib/units';
+import { useI18n } from '../i18n';
 
 export function ActiveWorkoutPage() {
+  const { t, tn } = useI18n();
   const navigate = useNavigate();
   const workout = useActiveWorkout();
   const exercises = useExerciseMap();
@@ -41,16 +43,16 @@ export function ActiveWorkoutPage() {
 
   const finish = async () => {
     setError(null);
-    if (done === 0) { setError('Complete at least one set before finishing.'); return; }
-    if (pending > 0 && !confirmAction(`${pending} unfinished set${pending > 1 ? 's' : ''} will be discarded. Finish workout?`)) return;
+    if (done === 0) { setError(t('active.needOneSet')); return; }
+    if (pending > 0 && !confirmAction(tn('active.confirmUnfinished', pending))) return;
     leaving.current = true;
     const res = await finishWorkout(workout.id);
-    if (!res.ok) { leaving.current = false; setError(res.error ?? 'Could not finish workout.'); return; }
+    if (!res.ok) { leaving.current = false; setError(t('active.finishError')); return; }
     navigate(`/history/${workout.id}?finished=1`, { replace: true });
   };
 
   const discard = async () => {
-    if (!confirmAction('Discard this workout? Logged sets will be lost.')) return;
+    if (!confirmAction(t('active.confirmDiscard'))) return;
     leaving.current = true;
     await discardWorkout(workout.id);
     navigate('/', { replace: true });
@@ -59,33 +61,33 @@ export function ActiveWorkoutPage() {
   return (
     <main className="page page--no-tabs">
       <header className="page-header">
-        <button type="button" className="icon-btn" aria-label="Minimise workout" onClick={() => navigate('/')}><IconBack /></button>
+        <button type="button" className="icon-btn" aria-label={t('active.minimise')} onClick={() => navigate('/')}><IconBack /></button>
         <div className="grow" style={{ textAlign: 'center' }}>
-          <div className="timer" aria-label="Workout duration">{formatClock(now - workout.startedAt)}</div>
-          <div className="tiny faint">{wake === 'active' ? 'Screen stays on' : ' '}</div>
+          <div className="timer timer--lg" aria-label={t('active.duration')}>{formatClock(now - workout.startedAt)}</div>
+          <div className="tiny faint">{wake === 'active' ? t('active.screenOn') : '\u00a0'}</div>
         </div>
-        <button type="button" className="btn btn--success btn--sm" onClick={() => void finish()}>Finish</button>
+        <button type="button" className="btn btn--success btn--sm" onClick={() => void finish()}>{t('active.finish')}</button>
       </header>
 
       <TextField
         className="input input--title"
-        aria-label="Workout name"
+        aria-label={t('active.name')}
         value={workout.name}
         maxLength={80}
         onCommit={(v) => void updateWorkoutMeta(workout.id, { name: v })}
       />
 
       <div className="stats">
-        <div className="stat"><div className="stat__label">Exercises</div><div className="stat__value">{workout.exercises.length}</div></div>
-        <div className="stat"><div className="stat__label">Volume</div><div className="stat__value">{formatVolume(workoutVolume(workout), settings.unit)}</div></div>
-        <div className="stat"><div className="stat__label">Sets</div><div className="stat__value">{done}</div></div>
+        <div className="stat"><div className="stat__label">{t('common.exercises')}</div><div className="stat__value">{workout.exercises.length}</div></div>
+        <div className="stat"><div className="stat__label">{t('common.volume')}</div><div className="stat__value">{formatVolume(workoutVolume(workout), settings.unit)}</div></div>
+        <div className="stat"><div className="stat__label">{t('common.sets')}</div><div className="stat__value">{done}</div></div>
       </div>
 
       {error && <div className="banner banner--error" role="alert">{error}</div>}
 
       <WorkoutEditor workout={workout} mode="active" exercises={exercises} settings={settings} previous={previous} />
 
-      <button type="button" className="btn btn--danger btn--block" onClick={() => void discard()}>Discard workout</button>
+      <button type="button" className="btn btn--danger btn--block" onClick={() => void discard()}>{t('active.discard')}</button>
     </main>
   );
 }

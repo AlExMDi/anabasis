@@ -6,7 +6,7 @@ import { detectPRs, type PersonalRecord } from '../lib/prs';
 
 /** `undefined` while loading — callers render a loading state. */
 export function useSettings(): Settings | undefined {
-  return useLiveQuery(async () => (await db.settings.get('app')) ?? { ...DEFAULT_SETTINGS }, []);
+  return useLiveQuery(async () => ({ ...DEFAULT_SETTINGS, ...(await db.settings.get('app')) }), []);
 }
 
 export function useExercises(): Exercise[] | undefined {
@@ -37,6 +37,11 @@ export function useWorkout(id: string | undefined): Workout | null | undefined {
 
 export function useRestTimer() {
   return useLiveQuery(async () => (await db.timers.get('rest')) ?? null, []);
+}
+
+/** `null` = no key saved. Never leaves the device except to call Anthropic. */
+export function useAiSecret() {
+  return useLiveQuery(async () => (await db.secrets.get('anthropic')) ?? null, []);
 }
 
 export function usePRs(workouts: Workout[] | undefined): PersonalRecord[] | undefined {
